@@ -97,8 +97,18 @@ VALID_BODY_PARTS_V2 = [
     "bottomwear", "legwear", "footwear", "tail", "wings", "objects",
 ]
 
-SEETHROUGH_MODELS_DIR = os.path.join(folder_paths.models_dir, "SeeThrough")
-os.makedirs(SEETHROUGH_MODELS_DIR, exist_ok=True)
+folder_paths.add_model_folder_path("SeeThrough", os.path.join(folder_paths.models_dir, "SeeThrough"))
+
+
+def _model_base_dirs():
+    """All registered SeeThrough model dirs, extra_model_paths.yaml entries first when is_default."""
+    return folder_paths.get_folder_paths("SeeThrough")
+
+
+try:
+    os.makedirs(_model_base_dirs()[0], exist_ok=True)
+except OSError:
+    pass
 
 
 class SeeThrough_LayersData:
@@ -148,39 +158,50 @@ def seed_everything(seed):
 
 
 def _scan_model_dirs():
-    """Recursively find diffusers model dirs (containing model_index.json) up to 2 levels deep.
-    Returns relative paths from SEETHROUGH_MODELS_DIR (e.g. 'foo' or 'org/foo')."""
+    """Recursively find diffusers model dirs (containing model_index.json) up to 2 levels deep
+    across every registered SeeThrough folder.
+    Returns relative paths from their base dir (e.g. 'foo' or 'org/foo'), deduplicated."""
     found = []
-    if not os.path.isdir(SEETHROUGH_MODELS_DIR):
-        return found
-    if os.path.isfile(os.path.join(SEETHROUGH_MODELS_DIR, "model_index.json")):
-        found.append(".")
-    for name in sorted(os.listdir(SEETHROUGH_MODELS_DIR)):
-        d1 = os.path.join(SEETHROUGH_MODELS_DIR, name)
-        if not os.path.isdir(d1):
+    for base in _model_base_dirs():
+        if not os.path.isdir(base):
             continue
-        if os.path.isfile(os.path.join(d1, "model_index.json")):
-            found.append(name)
-            continue
-        for sub in sorted(os.listdir(d1)):
-            d2 = os.path.join(d1, sub)
-            if os.path.isdir(d2) and os.path.isfile(os.path.join(d2, "model_index.json")):
-                found.append(f"{name}/{sub}")
+        if os.path.isfile(os.path.join(base, "model_index.json")) and "." not in found:
+            found.append(".")
+        for name in sorted(os.listdir(base)):
+            d1 = os.path.join(base, name)
+            if not os.path.isdir(d1):
+                continue
+            if os.path.isfile(os.path.join(d1, "model_index.json")):
+                if name not in found:
+                    found.append(name)
+                continue
+            for sub in sorted(os.listdir(d1)):
+                d2 = os.path.join(d1, sub)
+                rel = f"{name}/{sub}"
+                if os.path.isdir(d2) and os.path.isfile(os.path.join(d2, "model_index.json")) and rel not in found:
+                    found.append(rel)
     return found
 
 
 def _resolve_model_path(model_name):
+    bases = _model_base_dirs()
     if model_name == ".":
-        return SEETHROUGH_MODELS_DIR
-    local = os.path.join(SEETHROUGH_MODELS_DIR, model_name)
-    if os.path.isdir(local):
-        return local
+        for base in bases:
+            if os.path.isfile(os.path.join(base, "model_index.json")):
+                return base
+        return bases[0]
+    for base in bases:
+        local = os.path.join(base, model_name)
+        if os.path.isdir(local):
+            return local
     # When model_name is an org/repo style ID (e.g. "layerdifforg/seethroughv0.0.1_marigold"),
     # check if just the repo part exists locally (git clone creates dirs without the org prefix).
     basename = model_name.split("/")[-1]
-    local_basename = os.path.join(SEETHROUGH_MODELS_DIR, basename)
-    if basename != model_name and os.path.isdir(local_basename):
-        return local_basename
+    if basename != model_name:
+        for base in bases:
+            local_basename = os.path.join(base, basename)
+            if os.path.isdir(local_basename):
+                return local_basename
     return model_name
 
 
