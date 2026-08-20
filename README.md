@@ -25,6 +25,7 @@ Paper: [arxiv:2602.03749](https://arxiv.org/abs/2602.03749) (Conditionally accep
 | **SeeThrough Load Depth Model** | Load the Marigold depth estimation pipeline |
 | **SeeThrough Decompose** | Full pipeline: LayerDiff + Marigold depth + post-processing |
 | **SeeThrough Save PSD** | Save layers as PNGs + metadata; download PSD via browser button |
+| **SeeThrough Parts To Layers** | Convert decomposed parts into a core `LAYERS` document — connect to ComfyUI's **Create Layered Image** node to edit the stack in the built-in layer editor (position, opacity, blend modes) |
 
 ## Installation
 
@@ -100,6 +101,7 @@ Pre-made workflows are available in the `workflows/` directory:
 | Workflow | Resolution | Steps | L/R Split | Description |
 |----------|-----------|-------|-----------|-------------|
 | `seethrough-basic.json` | 1280 | 30 | Yes | Standard quality, recommended |
+| `seethrough-layer-editor.json` | 1280 | 30 | Yes | Decompose into the built-in layer editor: parts feed **Create Layered Image** for interactive editing (position, opacity, blend modes) |
 
 Drag any `.json` file into ComfyUI to load the workflow.
 

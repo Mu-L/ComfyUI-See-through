@@ -967,6 +967,55 @@ class SeeThrough_SavePSD:
         return (info_path,)
 
 
+class SeeThrough_PartsToLayers:
+    """Convert SEETHROUGH_PARTS into a core LAYERS document for the built-in
+    compositor / layer editor (Create Layered Image node)."""
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "parts": ("SEETHROUGH_PARTS",),
+            },
+        }
+
+    RETURN_TYPES = ("LAYERS",)
+    RETURN_NAMES = ("layers",)
+    FUNCTION = "convert"
+    CATEGORY = "SeeThrough"
+
+    def convert(self, parts):
+        tag2pinfo = parts["tag2pinfo"]
+        canvas_h, canvas_w = parts["frame_size"]
+
+        sorted_tags = sorted(tag2pinfo.keys(),
+                             key=lambda t: tag2pinfo[t].get("depth_median", 1), reverse=True)
+
+        items = []
+        for z_index, tag in enumerate(sorted_tags):
+            pinfo = tag2pinfo[tag]
+            img = pinfo.get("img")
+            if img is None:
+                continue
+            xyxy = pinfo.get("xyxy", [0, 0, img.shape[1], img.shape[0]])
+            tensor = torch.from_numpy(img.astype(np.float32) / 255.0).unsqueeze(0)
+            items.append({
+                "image": tensor,
+                "type": "raster",
+                "name": tag,
+                "x": int(xyxy[0]),
+                "y": int(xyxy[1]),
+                "z_index": z_index,
+            })
+
+        document = {
+            "version": 1,
+            "layers": items,
+            "canvas": (int(canvas_w), int(canvas_h)),
+        }
+        return (document,)
+
+
 NODE_CLASS_MAPPINGS = {
     "SeeThrough_LoadLayerDiffModel": SeeThrough_LoadLayerDiffModel,
     "SeeThrough_LoadDepthModel": SeeThrough_LoadDepthModel,
@@ -974,6 +1023,7 @@ NODE_CLASS_MAPPINGS = {
     "SeeThrough_GenerateDepth": SeeThrough_GenerateDepth,
     "SeeThrough_PostProcess": SeeThrough_PostProcess,
     "SeeThrough_SavePSD": SeeThrough_SavePSD,
+    "SeeThrough_PartsToLayers": SeeThrough_PartsToLayers,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -983,4 +1033,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SeeThrough_GenerateDepth": "SeeThrough Generate Depth",
     "SeeThrough_PostProcess": "SeeThrough Post Process",
     "SeeThrough_SavePSD": "SeeThrough Save PSD",
+    "SeeThrough_PartsToLayers": "SeeThrough Parts To Layers",
 }
